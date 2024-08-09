@@ -1,1 +1,0 @@
-# clip-stress-detection
