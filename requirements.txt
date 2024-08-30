@@ -19,11 +19,15 @@ optuna
 statsmodels
 bioread
 
+# explainability
+grad-cam
+captum
+
 # natural language processing
 nltk
 
 # deep learning
-torch
+torch==2.3.0
 
 # hugging face
 datasets
