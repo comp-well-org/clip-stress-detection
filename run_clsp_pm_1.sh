@@ -6,7 +6,7 @@ for fold in 0 1 2 3 4; do
                     for exclude in label all; do
                         for label_ratio in 0.1 0.5 1.0; do
                             for unlabel_ratio in 1.0; do
-                                python main.py --train --dataset pmdata --exp run --mode clip --linear --finetune --n_epochs 300 --batch_size 512 --seq_enc $seq_enc --tab_enc $tab_enc --fold $fold --norm_config $norm_config --seed $seed --exclude $exclude --unlabel_ratio $unlabel_ratio --label_ratio $label_ratio
+                                python main.py --train --dataset pmdata --exp run --mode clip --linear --finetune --n_epochs 300 --batch_size 512 --seq_enc $seq_enc --tab_enc $tab_enc --fold $fold --norm_config $norm_config --seed $seed --exclude $exclude --unlabel_ratio $unlabel_ratio --label_ratio $label_ratio --save_weights
                             done
                         done
                     done
