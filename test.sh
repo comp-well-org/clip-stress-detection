@@ -1,1 +1,0 @@
-python main.py --save_weights --train --dataset lifesnaps --exp test --mode clip --linear --finetune --n_epochs 40 --batch_size 512 --seq_enc transformer --tab_enc resnet --fold 0 --norm_config quantile_global --seed 0 --exclude label --unlabel_ratio 1.0 --label_ratio 1.0 
