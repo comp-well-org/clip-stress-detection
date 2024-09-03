@@ -18,16 +18,22 @@ from adapted.cw.byol import BYOL
 from captum.attr import FeatureAblation
 
 warnings.filterwarnings('ignore')
-DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+DEVICE = 'cuda:1'
 
-def decompose_batch(batch, dataset_name):
+def decompose_batch(batch, dataset_name, ablation_idx=0):
     if dataset_name == 'lifesnaps':
+        # 5 channels
         fitbit, tabular, stress, desc = batch
+        # get the channel of fitbit
+        fitbit = fitbit[:, ablation_idx, :].unsqueeze(1) 
         fitbit = fitbit.float()
         tabular = tabular.unsqueeze(1).float()
         desc = desc.float()
     elif dataset_name == 'pmdata':
+        # 4 channels
         fitbit, tabular, stress, desc = batch
+        # get the channel of fitbit
+        fitbit = fitbit[:, ablation_idx, :].unsqueeze(1) 
         fitbit = fitbit.float()
         tabular = tabular.unsqueeze(1).float()
         desc = desc.float()
@@ -46,6 +52,7 @@ def train_loop(
     dataset_name, mode='clip',
     save_weights=False,
     save_path=None,
+    ablation_idx=0,
 ):
     assert mode in ['clip', 'sup', 'leaves', 'simclr', 'byol']
     assert dataset_name in ['lifesnaps', 'pmdata']    
@@ -66,7 +73,7 @@ def train_loop(
         model.train()
         train_loss = AvgMeter()
         for i, batch in enumerate(train_loader):
-            common, tabular, stress, desc = decompose_batch(batch, dataset_name)
+            common, tabular, stress, desc = decompose_batch(batch, dataset_name, ablation_idx)
             common = common.float().to(torch.device(DEVICE))
             tabular = tabular.float().to(torch.device(DEVICE))
             stress = stress.long().to(torch.device(DEVICE))
@@ -128,7 +135,7 @@ def train_loop(
         with torch.no_grad():
             for _, batch in enumerate(eval_loader):
                 # have data
-                common, tabular, stress, _ = decompose_batch(batch, dataset_name)
+                common, tabular, stress, _ = decompose_batch(batch, dataset_name, ablation_idx)
                 # move to device
                 common = common.float().to(torch.device(DEVICE))
                 tabular = tabular.float().to(torch.device(DEVICE))
@@ -201,6 +208,7 @@ def finetune_clip_loop(
     dataset_name,
     save_weights=False, freeze=False,
     save_path=None,
+    ablation_idx=0,
 ):
     assert dataset_name in ['lifesnaps', 'pmdata']    
     if not os.path.exists(save_path):
@@ -234,7 +242,7 @@ def finetune_clip_loop(
         model.train()
         train_loss = AvgMeter()
         for i, batch in enumerate(train_loader):
-            common, tabular, stress, _ = decompose_batch(batch, dataset_name)
+            common, tabular, stress, _ = decompose_batch(batch, dataset_name, ablation_idx)
             common = common.float().to(torch.device(DEVICE))
             tabular = tabular.float().to(torch.device(DEVICE))
             stress = stress.long().to(torch.device(DEVICE))
@@ -268,7 +276,7 @@ def finetune_clip_loop(
         with torch.no_grad():
             for _, batch in enumerate(eval_loader):
                 # have data
-                common, tabular, stress, _ = decompose_batch(batch, dataset_name)
+                common, tabular, stress, _ = decompose_batch(batch, dataset_name, ablation_idx)
                 # move to device
                 common = common.float().to(torch.device(DEVICE))
                 tabular = tabular.float().to(torch.device(DEVICE))
@@ -347,7 +355,7 @@ def get_model(
     n_layers,
 ):
     if torch.cuda.is_available():
-        device_name = 'cuda'
+        device_name = DEVICE
     else:
         device_name = 'cpu'
     text_encoder = BertEncoder(device=device_name)
@@ -440,9 +448,9 @@ def get_model(
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', type=str, default='pmdata')
-    parser.add_argument('--exp', type=str, default='test')
+    parser.add_argument('--exp', type=str, default='ablation')
     parser.add_argument('--mode', type=str, default='clip')
-    parser.add_argument('--n_epochs', type=int, default=200)
+    parser.add_argument('--n_epochs', type=int, default=300)
     parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--hidden_size', type=int, default=64)
@@ -450,15 +458,17 @@ def main():
     parser.add_argument('--seq_enc', type=str, default='lstm')
     parser.add_argument('--tab_enc', type=str, default='transformer')
     parser.add_argument('--save_weights', action='store_true')
-    parser.add_argument('--train', action='store_true')
-    parser.add_argument('--linear', action='store_true')
-    parser.add_argument('--finetune', action='store_true')
+    parser.add_argument('--train', action='store_true', default=True)
+    parser.add_argument('--linear', action='store_true', default=True)
+    parser.add_argument('--finetune', action='store_true', default=True)
     parser.add_argument('--fold', type=int, default=0)
-    parser.add_argument('--exclude', type=str, default='none')
-    parser.add_argument('--unlabel_ratio', type=float, default=0.0)
+    parser.add_argument('--exclude', type=str, default='label')
+    parser.add_argument('--unlabel_ratio', type=float, default=1.0)
     parser.add_argument('--label_ratio', type=float, default=1.0)
-    parser.add_argument('--norm_config', type=str, default='none')
-    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--norm_config', type=str, default='quantile_global')
+    parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--ablation_idx', type=int, default=0)
+    parser.add_argument('--gpu', type=int, default=0)
     
     args = parser.parse_args()
     dataset_name = args.dataset
@@ -538,6 +548,7 @@ def main():
                 mode=mode,
                 save_weights=save_weights,
                 save_path=save_path,
+                ablation_idx=args.ablation_idx,
             )
         if mode in ['clip', 'simclr', 'byol', 'leaves']:
             if args.linear:
@@ -551,6 +562,7 @@ def main():
                     save_weights=save_weights,
                     freeze=True,
                     save_path=save_path,
+                    ablation_idx=args.ablation_idx,
                 )
             if args.finetune:
                 finetune_clip_loop(
@@ -563,6 +575,7 @@ def main():
                     save_weights=save_weights,
                     freeze=False,
                     save_path=save_path,
+                    ablation_idx=args.ablation_idx,
                 )
 
     # save args as a json file
@@ -570,15 +583,8 @@ def main():
     args_dict.pop('norm_config')
     args_dict['scaler'] = scaler
     args_dict['norm_type'] = norm_type
-    if scaler == 'none' and norm_type == 'none':
-        norm_str = 'unnormalized'
-    else:
-        norm_str = f'{scaler}_{norm_type}'
-    run_name = f'{dataset_name}/{args.exp}/{mode}/{norm_str}/seq:{args.seq_enc}_tab:{args.tab_enc}/'
-    exp_name = f'{run_name}/unlabel_rate_{int(args.unlabel_ratio * 100)}/'
-    exp_name += f'label_rate_{int(args.label_ratio * 100)}/'
-    fold_name = f'{args.exclude}/fold_{fold}/seed_{seed}/'
-    exp_name += fold_name
+    run_name = f'{dataset_name}/{args.exp}/'
+    exp_name = f'{run_name}/fold_{fold}/seed_{seed}/chnl_{args.ablation_idx}'
     save_path = os.path.join(EXPS_PATH, exp_name)
     if not os.path.exists(save_path):
         os.makedirs(save_path)
