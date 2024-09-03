@@ -15,6 +15,16 @@ from models import CLIP, BertEncoder, LinearProbe, SupBaselineNet
 from models import TransformerEncoder, ResNetSeqEncoder, LSTMEncoder, CNNSeqEncoder
 from adapted.cw.simclr import SimCLR
 from adapted.cw.byol import BYOL
+from captum.attr import (
+    GradientShap,
+    DeepLift,
+    DeepLiftShap,
+    IntegratedGradients,
+    LayerConductance,
+    NeuronConductance,
+    NoiseTunnel,
+    FeatureAblation,
+)
 
 warnings.filterwarnings('ignore')
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -259,8 +269,11 @@ def finetune_clip_loop(
 
         # evaluate
         model.eval()
+        fa = FeatureAblation(model)
         val_labels = np.array([])
         val_preds = np.array([])
+        common_fa = []
+        tabular_fa = []
         with torch.no_grad():
             for _, batch in enumerate(eval_loader):
                 # have data
@@ -280,6 +293,28 @@ def finetune_clip_loop(
                 y_true = stress.cpu().numpy()
                 val_labels = np.concatenate([val_labels, y_true])
                 val_preds = np.concatenate([val_preds, y_pred])
+                
+                if epoch == n_epochs - 1 and not freeze:
+                    # feature ablation
+                    attributions = fa.attribute(
+                        (common, tabular), target=1,
+                    )
+                    common_fa.append(attributions[0].cpu().numpy())
+                    tabular_fa.append(attributions[1].cpu().numpy())
+
+        if epoch == n_epochs - 1 and not freeze:
+            common_fa = np.concatenate(common_fa)
+            tabular_fa = np.concatenate(tabular_fa)
+            common_fa = common_fa.mean(axis=0)
+            tabular_fa = tabular_fa.mean(axis=0)
+        
+            print()
+            print('common feature importance:', common_fa.shape)
+            print('tabular feature importance:', tabular_fa.shape)
+        
+            # save as npy
+            np.save(os.path.join(save_path, 'common_fa.npy'), common_fa)
+            np.save(os.path.join(save_path, 'tabular_fa.npy'), tabular_fa)
         
         # update the validation accuracy and AUC
         val_acc = (val_preds == val_labels).mean()

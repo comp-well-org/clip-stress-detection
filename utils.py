@@ -221,6 +221,16 @@ class LifeSnapsDataset(Dataset):
         self.tabular_cols = cols[7:tab_end_idx]
         stress_label_col = 'stress_top_y'
         
+        # write fitbit cols as txt
+        with open(os.path.join(LIFESNAPS_PATH, 'processed', 'fitbit_cols.txt'), 'w') as f:
+            for item in self.fitbit_cols:
+                f.write(f'{item}\n')
+
+        # write tabular cols as txt
+        with open(os.path.join(LIFESNAPS_PATH, 'processed', 'tabular_cols.txt'), 'w') as f:
+            for item in self.tabular_cols:
+                f.write(f'{item}\n')
+        
         # random seed
         np.random.seed(seed)
         
@@ -301,6 +311,16 @@ class PMDataDataset(Dataset):
         ]
         self.stress_label_col = 'stress_label'
         np.random.seed(seed)
+        
+        # write fitbit cols as txt
+        with open(os.path.join(PMDATA_PATH, 'processed', 'fitbit_cols.txt'), 'w') as f:
+            for item in self.fitbit_cols:
+                f.write(f'{item}\n')
+        
+        # write tabular cols as txt
+        with open(os.path.join(PMDATA_PATH, 'processed', 'tabular_cols.txt'), 'w') as f:
+            for item in self.tabular_cols:
+                f.write(f'{item}\n')
         
         # labeled indices
         labeled_indices = pmdata_df.index[pmdata_df[self.stress_label_col] != -1].tolist()
@@ -468,7 +488,7 @@ def get_lifesnaps_loader(
     exclude_attrs_lists = [
         'demographics', 'personality', 'activity', 'location',
         'steps', 'bpm', 'calories', 'distance', 'temperature',
-        'label', 'relevant', 'irrelevant', 'all'
+        'label', 'relevant', 'irrelevant', 'all',
     ]
     if exclude != 'none':
         assert exclude in exclude_attrs_lists

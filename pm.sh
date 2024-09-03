@@ -3,10 +3,10 @@ for fold in 0; do
         for norm_config in quantile_global; do
             for seq_enc in transformer; do
                 for tab_enc in resnet; do
-                    for exclude in all; do
+                    for exclude in label; do
                         for label_ratio in 1.0; do
                             for unlabel_ratio in 1.0; do
-                                python main.py --train --save_weights --dataset pmdata --exp weights --mode clip --linear --finetune --n_epochs 300 --batch_size 512 --seq_enc $seq_enc --tab_enc $tab_enc --fold $fold --norm_config $norm_config --seed $seed --exclude $exclude --unlabel_ratio $unlabel_ratio --label_ratio $label_ratio
+                                python main.py --train --save_weights --dataset pmdata --exp weights --mode clip --linear --finetune --n_epochs 500 --batch_size 512 --seq_enc $seq_enc --tab_enc $tab_enc --fold $fold --norm_config $norm_config --seed $seed --exclude $exclude --unlabel_ratio $unlabel_ratio --label_ratio $label_ratio
                             done
                         done
                     done
