@@ -11,7 +11,7 @@ Thank you for your thorough review and precious feedback. We have carefully cons
 
 ## Reviewer 1
 
-Thank you for your thorough review and precious feedback. We have carefully considered your comments and suggestions. Regarding the weakness of the paper, below are the changes and clarifications we have made in the potential revised version of the paper:
+Thank you for your thorough review and precious feedback. We have carefully considered your comments and suggestions. Regarding the weakness of the paper, below are the changes and clarifications we have made in the potential revised version of the paper:s
 
 1. **Mixed Participant Data Split.** In section III.A.3, the 5-fold data split we used does allow participants to be mixed between the training and test sets. We applied constraints to the cross-validation process to ensure that the same participants are included in both the training and test sets, with the exception of participants who have fewer than 5 data points; these participants are included only in the training set.
 1. **Prediction Using Mean Value in the Training Data.** We have utilized the average stress score from the training data to predict each participant's stress score in the test data. However, this approach assumes knowledge of the participants' identities for testing, which makes it more comparable to a personalized model. Therefore, while we will discuss the mean value prediction in the related works section, it will not be included in the experimental results. Our approach should include participant IDs as input, making it consistent with the concept of a personalized model if we decide to compare it with the mean value prediction.
