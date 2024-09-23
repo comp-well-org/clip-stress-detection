@@ -272,10 +272,108 @@ class LifeSnapsDataset(Dataset):
         desc = self.desc[idx]
         return fitbit, tabular, stress, desc
 
+# class PMDataDataset(Dataset):
+#     def __init__(
+#         self, pmdata_df, text_emb, 
+#         unlabeled_proportion=0.2, labeled_proportion=1.0,
+#         seed=42,
+#     ):
+#         self.df = pmdata_df
+#         self.cols = self.df.columns.tolist()
+#         self.key_cols = self.cols[:2]  # participant_id, date
+#         self.fitbit_cols = ['steps', 'heart_rate', 'calories', 'distance']
+#         self.tabular_cols = [
+#             # location
+#             'BELOW_DEFAULT_ZONE_1', 'IN_DEFAULT_ZONE_1', 'IN_DEFAULT_ZONE_3', 'IN_DEFAULT_ZONE_2', 
+#             # active
+#             'lightly_active_minutes', 'moderately_active_minutes', 
+#             'sedentary_minutes', 
+#             'very_active_minutes', 
+#             # heart
+#             'efficiency', 'resting_heart_rate',
+#             # scores
+#             'overall_score', 'composition_score', 'revitalization_score',
+#             # location
+#             'IN_CUSTOM_ZONE', 'BELOW_CUSTOM_ZONE', 'ABOVE_CUSTOM_ZONE', 
+#             # demographics
+#             'age', 'weight', 'height', 'gender',
+#             # drink
+#             'glasses_of_fluid', 
+#             # activity
+#             'perceived_exertion', 'duration_min', 
+#             # sleep
+#             'minutesAsleep', 'minutesAwake', 'timeInBed',
+#             'deep_sleep_in_minutes', 'sleep_duration_h', 'sleep_quality', 
+#             # body
+#             'soreness', 'fatigue', 'readiness', 'hadInjury', 'restlessness',
+#             # eat
+#             'hadBreakfast', 'hadLunch', 'hadDinner', 'hadEvening',
+#         ]
+#         self.stress_label_col = 'stress_label'
+#         np.random.seed(seed)
+        
+#         # write fitbit cols as txt
+#         with open(os.path.join(PMDATA_PATH, 'processed', 'fitbit_cols.txt'), 'w') as f:
+#             for item in self.fitbit_cols:
+#                 f.write(f'{item}\n')
+        
+#         # write tabular cols as txt
+#         with open(os.path.join(PMDATA_PATH, 'processed', 'tabular_cols.txt'), 'w') as f:
+#             for item in self.tabular_cols:
+#                 f.write(f'{item}\n')
+        
+#         # labeled indices
+#         labeled_indices = pmdata_df.index[pmdata_df[self.stress_label_col] != -1].tolist()
+#         unlabeled_indices = pmdata_df.index[pmdata_df[self.stress_label_col] == -1].tolist()
+        
+#         chosen_labeled_indices = np.random.choice(
+#             labeled_indices, int(len(labeled_indices) * (1 - labeled_proportion)),
+#         )
+#         pmdata_df[self.stress_label_col].iloc[chosen_labeled_indices] = -1
+        
+#         # sample labeled indices
+#         unlabeled_indices = np.random.choice(
+#             unlabeled_indices, int(len(unlabeled_indices) * unlabeled_proportion),
+#         )
+
+#         sampled_indices = np.concatenate([labeled_indices, unlabeled_indices])
+#         self.df = pmdata_df.iloc[sampled_indices]
+        
+#         self.fitbit = self.df[self.fitbit_cols]        
+#         self.fitbit = self.fitbit.apply(
+#             lambda x: np.stack(x), axis=1,
+#         )
+#         self.fitbit = np.stack(self.fitbit)
+#         # fill na in the fitbit data with 0
+#         self.fitbit = np.nan_to_num(self.fitbit)
+        
+#         self.tabular = self.df[self.tabular_cols]
+#         object_cols = [
+#             'lightly_active_minutes', 'moderately_active_minutes', 
+#             'sedentary_minutes', 'very_active_minutes',
+#         ]
+#         # these columns are object type, convert to float
+#         self.tabular[object_cols] = self.tabular[object_cols].astype(float)
+#         self.tabular = self.tabular.fillna(0).values
+        
+#         self.stress = self.df[self.stress_label_col].values
+        
+#         self.desc = text_emb[sampled_indices]
+    
+#     def __len__(self):
+#         return len(self.df)
+    
+#     def __getitem__(self, idx):
+#         fitbit = self.fitbit[idx]
+#         tabular = self.tabular[idx]
+#         stress = self.stress[idx]
+#         desc = self.desc[idx]
+#         return fitbit, tabular, stress, desc
+
 class PMDataDataset(Dataset):
     def __init__(
         self, pmdata_df, text_emb, 
-        unlabeled_proportion=0.2, labeled_proportion=1.0, 
+        unlabeled_proportion=0.2, labeled_proportion=0.3,
         seed=42,
     ):
         self.df = pmdata_df
@@ -322,22 +420,37 @@ class PMDataDataset(Dataset):
             for item in self.tabular_cols:
                 f.write(f'{item}\n')
         
+        # print(f'unlabeled proportion: {unlabeled_proportion}, labeled proportion: {labeled_proportion}')
+        
         # labeled indices
+        pmdata_df = pmdata_df.reset_index(drop=True)
+        
         labeled_indices = pmdata_df.index[pmdata_df[self.stress_label_col] != -1].tolist()
         unlabeled_indices = pmdata_df.index[pmdata_df[self.stress_label_col] == -1].tolist()
         
-        chosen_labeled_indices = np.random.choice(
-            labeled_indices, int(len(labeled_indices) * (1 - labeled_proportion)),
-        )
-        pmdata_df[self.stress_label_col].iloc[chosen_labeled_indices] = -1
+        # print(max(labeled_indices), max(unlabeled_indices), len(pmdata_df))
         
-        # sample labeled indices
-        unlabeled_indices = np.random.choice(
-            unlabeled_indices, int(len(unlabeled_indices) * unlabeled_proportion),
-        )
+        # set 50 percent labeled data as unlabeled
+        unlucky_labeled_indices = labeled_indices[:int(len(labeled_indices) * (1 - labeled_proportion))]
+        # print(f'len of unlucky labeled indices: {len(unlucky_labeled_indices)}')
+        # number of labels in pmdata_df before setting to -1
+        # print('number of labels in pmdata_df before setting to -1:', len(pmdata_df[pmdata_df[self.stress_label_col] != -1]))
+        pmdata_df[self.stress_label_col].iloc[unlucky_labeled_indices] = -1
+        # number of labels in pmdata_df after setting to -1
+        # print('number of labels in pmdata_df after setting to -1:', len(pmdata_df[pmdata_df[self.stress_label_col] != -1]))
 
-        sampled_indices = np.concatenate([labeled_indices, unlabeled_indices])
+        # get the indices again
+        labeled_indices = pmdata_df.index[pmdata_df[self.stress_label_col] != -1].tolist()
+        unlabeled_indices = pmdata_df.index[pmdata_df[self.stress_label_col] == -1].tolist()
+        # print(f'labeled indices: {len(labeled_indices)}, unlabeled indices: {len(unlabeled_indices)}')
+
+        unlabeled_indices = unlabeled_indices[:int(len(unlabeled_indices) * unlabeled_proportion)]
+
+        sampled_indices = np.array(labeled_indices + unlabeled_indices)
+        # print(max(sampled_indices), len(pmdata_df))
+        
         self.df = pmdata_df.iloc[sampled_indices]
+        print('the length of the dataset is:', len(self.df))
         
         self.fitbit = self.df[self.fitbit_cols]        
         self.fitbit = self.fitbit.apply(
@@ -372,7 +485,7 @@ class PMDataDataset(Dataset):
 
 def get_pmdata_loader(
     flag, batch_size=256, exclude: str = 'none', fold: int = 0,
-    unlabeled_proportion=0.2, labeled_proportion=1.0,
+    unlabeled_proportion=0.2, labeled_proportion=0.3,
     seed=42, scaler='none', norm_type='none',
 ):
     assert scaler in ['standard', 'minmax', 'quantile', 'none']
