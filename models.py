@@ -193,6 +193,12 @@ class MultiModalEncoder(nn.Module):
         
         return ans
 
+def align_loss(x, y, alpha=2):
+    return (x - y).norm(p=2, dim=1).pow(alpha).mean()
+
+def uniform_loss(x, t=2):
+    return torch.pdist(x, p=2).pow(2).mul(-t).exp().mean().log()
+
 class CLIP(nn.Module):
     def __init__(
         self,
@@ -226,6 +232,9 @@ class CLIP(nn.Module):
         seq_embeddings = self.seq_proj(seq_features)
         text_embeddings = self.text_proj(texts)
         
+        loss_align = align_loss(seq_embeddings, text_embeddings)
+        loss_uniform = uniform_loss(seq_embeddings)
+        
         # compute the loss
         logits = (text_embeddings @ seq_embeddings.T) / self.temperature
         seq_similarity = seq_embeddings @ seq_embeddings.T
@@ -236,7 +245,7 @@ class CLIP(nn.Module):
         txt_loss = cross_entropy(logits, targets, reduction='none')
         seq_loss = cross_entropy(logits.T, targets.T, reduction='none')
         loss = (txt_loss + seq_loss) / 2
-        return loss.mean()
+        return loss.mean(), loss_align, loss_uniform
 
 class LinearProbe(nn.Module):
     def __init__(self, model, out_dim, freeze=True):

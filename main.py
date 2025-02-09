@@ -20,6 +20,12 @@ from captum.attr import FeatureAblation
 warnings.filterwarnings('ignore')
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+def align_loss(x, y, alpha=2):
+    return (x - y).norm(p=2, dim=1).pow(alpha).mean()
+
+def uniform_loss(x, t=2):
+    return torch.pdist(x, p=2).pow(2).mul(-t).exp().mean().log()
+
 def decompose_batch(batch, dataset_name):
     if dataset_name == 'lifesnaps':
         fitbit, tabular, stress, desc = batch
@@ -65,6 +71,8 @@ def train_loop(
     for epoch in range(n_epochs):
         model.train()
         train_loss = AvgMeter()
+        train_loss_align = AvgMeter()
+        train_loss_uniform = AvgMeter()
         for i, batch in enumerate(train_loader):
             common, tabular, stress, desc = decompose_batch(batch, dataset_name)
             common = common.float().to(torch.device(DEVICE))
@@ -75,9 +83,10 @@ def train_loop(
             if mode == 'leaves':  # need dual optimizer if we use leaves
                 optimizer_aug = torch.optim.Adam(model.parameters(), lr=lr)
             if mode == 'clip':
-                loss = model(desc, common, tabular)
+                loss, loss_align, loss_uniform = model(desc, common, tabular)
             elif mode in ['simclr', 'byol', 'leaves']:
-                loss = model(common)
+                loss, loss_align, loss_uniform = model(common)
+                
             elif mode == 'sup':
                 # only for indices with valid stress
                 nan_indices = stress == -1
@@ -114,6 +123,9 @@ def train_loop(
                 loss.backward()
                 optimizer.step()
                 train_loss.update(loss.item())
+                if mode in ['simclr', 'clip']:
+                    train_loss_align.update(loss_align.item())
+                    train_loss_uniform.update(loss_uniform.item())
             msg = f'epoch: {epoch + 1}, batch: {i + 1}/{len(train_loader)}, '
             msg += f'loss: {train_loss.avg:.4f} val_acc: {val_acc:.4f}, val_auc: {val_auc:.4f}'
             if epoch == n_epochs - 1 and i == len(train_loader) - 1:
@@ -170,6 +182,8 @@ def train_loop(
         results.append({
             'epoch': epoch,
             'train_loss': train_loss.avg,
+            'train_loss_align': train_loss_align.avg,
+            'train_loss_uniform': train_loss_uniform.avg,
             'val_acc': val_acc,
             'val_auc': val_auc,
         })

@@ -62,6 +62,12 @@ class ContrastiveLoss(nn.Module):
             loss += l_ij(k, k + batch_size) + l_ij(k + batch_size, k)
         return 1.0 / (2 * batch_size) * loss
 
+def align_loss(x, y, alpha=2):
+    return (x - y).norm(p=2, dim=1).pow(alpha).mean()
+
+def uniform_loss(x, t=2):
+    return torch.pdist(x, p=2).pow(2).mul(-t).exp().mean().log()
+
 class SimCLR(nn.Module):
     def __init__(
         self, 
@@ -96,6 +102,9 @@ class SimCLR(nn.Module):
         view1_emb = self.seq_proj(view1_emb)
         view2_emb = self.seq_proj(view2_emb)
         
+        loss_align = align_loss(view1_emb, view2_emb)
+        loss_uniform = uniform_loss(view1_emb)
+        
         contrastive_loss = self.loss_fn(view1_emb, view2_emb)
         
-        return contrastive_loss
+        return contrastive_loss, loss_align, loss_uniform
