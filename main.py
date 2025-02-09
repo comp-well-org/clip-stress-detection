@@ -13,8 +13,8 @@ from utils import AvgMeter
 from utils import get_lifesnaps_loader, get_pmdata_loader
 from models import CLIP, BertEncoder, LinearProbe, SupBaselineNet
 from models import TransformerEncoder, ResNetSeqEncoder, LSTMEncoder, CNNSeqEncoder
-from adapted.cw.simclr import SimCLR
-from adapted.cw.byol import BYOL
+from adapted.abc.simclr import SimCLR
+from adapted.abc.byol import BYOL
 from captum.attr import FeatureAblation
 
 warnings.filterwarnings('ignore')
