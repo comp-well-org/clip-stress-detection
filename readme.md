@@ -1,4 +1,5 @@
-# CLIP for Stress Detection
+# Contrastive Pretraining for Stress Detention with Multimodal Wearable Sensor Data and Surveys (CHIL 2025)
+## CLIP for Stress Detection
 
 This repository implements a multimodal stress detection system using CLIP (Contrastive Language-Image Pre-training) architecture adapted for physiological and behavioral data. The system can detect stress levels by analyzing Fitbit data, tabular features, and textual descriptions.
 
